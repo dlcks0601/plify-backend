@@ -33,7 +33,7 @@ export class AuthController {
 
   @Post('spotify/callback')
   async spotifyCallback(@Body('code') code: string, @Res() res: Response) {
-    const { user, accessToken, refreshToken, isExistingUser } =
+    const { user, accessToken, refreshToken } =
       await this.authService.handleSpotifyCallback(code);
     const response = {
       message: {
@@ -43,7 +43,6 @@ export class AuthController {
       user,
       accessToken,
       refreshToken,
-      isExistingUser,
     };
     return res.status(HttpStatus.OK).json(response);
   }

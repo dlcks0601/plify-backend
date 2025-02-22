@@ -16,10 +16,9 @@ export class AuthService {
 
   async handleSpotifyCallback(code: string) {
     try {
-      // Spotify 액세스 토큰 발급 요청 (URL 인코딩 방식)
       const params = new URLSearchParams({
         code,
-        client_id: process.env.SPOTIFY_CLIENT_ID!, // 값이 반드시 존재함을 보장
+        client_id: process.env.SPOTIFY_CLIENT_ID!,
         client_secret: process.env.SPOTIFY_CLIENT_SECRET!,
         redirect_uri: process.env.SPOTIFY_REDIRECT_URI!,
         grant_type: 'authorization_code',
@@ -34,10 +33,12 @@ export class AuthService {
           },
         },
       );
-      const { access_token } = tokenResponse.data;
+      console.log(tokenResponse.data);
+
+      const { access_token, refresh_token } = tokenResponse.data;
+      console.log('Spotify Refresh Token:', refresh_token);
       console.log('Spotify Access Token:', access_token);
 
-      // Spotify 사용자 정보 요청
       const userInfoResponse = await axios.get(
         'https://api.spotify.com/v1/me',
         {
@@ -45,6 +46,7 @@ export class AuthService {
         },
       );
       const userData = userInfoResponse.data;
+
       console.log('Spotify User Data:', userData);
 
       if (!userData.id) {
@@ -62,23 +64,63 @@ export class AuthService {
       // 기존 유저 존재 여부 확인 (이메일)
       const isExistingUser = await this.checkUserExist(spotifyUser.email);
 
-      // Spotify 유저 찾기 또는 생성
-      const user = await this.findOrCreateSpotifyUser(spotifyUser);
+      // ✅ **유저 찾기 또는 업데이트**
+      let user = await this.prisma.user.findUnique({
+        where: { spotifyId: spotifyUser.spotifyId },
+      });
 
-      // JWT 액세스 토큰 및 리프레시 토큰 생성
-      const accessToken = this.generateAccessToken(user.id);
-      const refreshToken = this.generateRefreshToken(user.id);
+      const accessToken = tokenResponse.data.access_token;
+      const refreshToken = tokenResponse.data.refresh_token;
+      if (user) {
+        // 🔄 **기존 유저 정보 최신화**
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            email: spotifyUser.email,
+            name: spotifyUser.displayName,
+            profile_url: spotifyUser.profileImageUrl,
+          },
+        });
 
-      // Redis에 리프레시 토큰 저장
-      await this.storeRefreshToken(user.id, refreshToken);
+        console.log(`✅ 유저 ${user.id} 정보 업데이트 완료`);
+      } else {
+        // 🆕 **신규 유저 생성**
+        let finalNickname = spotifyUser.displayName;
+        let isNicknameTaken = await this.prisma.user.findUnique({
+          where: { nickname: finalNickname },
+        });
+
+        while (isNicknameTaken) {
+          const randomNumber = Math.floor(1000 + Math.random() * 9000);
+          finalNickname = `${spotifyUser.displayName}${randomNumber}`;
+          isNicknameTaken = await this.prisma.user.findUnique({
+            where: { nickname: finalNickname },
+          });
+        }
+
+        user = await this.prisma.user.create({
+          data: {
+            spotifyId: spotifyUser.spotifyId,
+            email: spotifyUser.email,
+            name: spotifyUser.displayName,
+            nickname: finalNickname,
+            profile_url: spotifyUser.profileImageUrl,
+
+            auth_provider: 'spotify',
+          },
+        });
+
+        console.log(`🆕 신규 유저 생성: ${user.id}`);
+      }
+
+      // 🔄 Redis에 리프레시 토큰 저장
+      await this.storeRefreshToken(user.id, refresh_token);
 
       const responseUser = this.filterUserFields(user);
-
       return {
         user: responseUser,
-        accessToken,
-        refreshToken,
-        isExistingUser,
+        accessToken: access_token, // ✅ Spotify Access Token 그대로 사용
+        refreshToken: refresh_token, // ✅ Spotify Refresh Token 그대로 사용
       };
     } catch (error) {
       console.error(error);
