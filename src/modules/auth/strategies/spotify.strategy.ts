@@ -10,7 +10,16 @@ export class SpotifyStrategy extends PassportStrategy(Strategy, 'spotify') {
       clientID: process.env.SPOTIFY_CLIENT_ID,
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
       callbackURL: process.env.SPOTIFY_REDIRECT_URI,
-      scope: ['user-read-email', 'user-read-private'],
+      // 기존 스코프에 'user-top-read' 추가
+      scope: [
+        'user-read-email',
+        'user-read-private',
+        'user-top-read',
+        'streaming',
+        'user-read-playback-state',
+        'user-modify-playback-state',
+        'user-read-currently-playing',
+      ],
       passReqToCallback: false,
     } as StrategyOptions);
   }
@@ -21,7 +30,7 @@ export class SpotifyStrategy extends PassportStrategy(Strategy, 'spotify') {
     profile: any,
     done: VerifyCallback,
   ): Promise<any> {
-    // 프로필 정보를 SpotifyAuthDto 형식으로 매핑
+    // Spotify 프로필 정보를 SpotifyAuthDto 형식으로 매핑
     const spotifyUser: SpotifyAuthDto = {
       spotifyId: profile.id,
       email: profile.emails?.[0]?.value || `${profile.id}@spotify.com`,

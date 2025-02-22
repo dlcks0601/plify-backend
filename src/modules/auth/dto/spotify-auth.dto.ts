@@ -2,5 +2,5 @@ export class SpotifyAuthDto {
   spotifyId: string;
   email: string;
   displayName: string;
-  profileImageUrl?: string;
+  profileImageUrl?: string | null;
 }
