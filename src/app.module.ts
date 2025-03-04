@@ -1,7 +1,9 @@
 import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config'; // ConfigModule 추가
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './modules/auth/auth.module';
+import { PlaylistModule } from './modules/playlist/playlist.module';
+import { CommentModule } from './modules/comment/comment.module';
+import { PlaylistLikeModule } from './modules/playlist-like/playlist-like.module';
 
 @Module({
   imports: [
@@ -11,6 +13,9 @@ import { AuthModule } from './modules/auth/auth.module';
       envFilePath: '.env',
     }),
     AuthModule,
+    PlaylistModule,
+    CommentModule,
+    PlaylistLikeModule,
   ],
 })
 export class AppModule {}
