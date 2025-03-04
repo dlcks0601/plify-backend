@@ -8,13 +8,54 @@ datasource db {
 }
 
 model User {
-  id            Int      @id @default(autoincrement())
-  spotifyId     String?  @unique
-  email         String   @unique
+  id            Int              @id @default(autoincrement())
+  spotifyId     String?          @unique
+  email         String           @unique
   name          String
-  nickname      String   @unique
+  nickname      String           @unique
   auth_provider String
   profile_url   String?
   password      String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime         @default(now())
+
+  playlists     Playlist[]
+  comments      Comment[]
+  likes         PlaylistLike[]
+}
+
+model Playlist {
+  // DB 내부의 기본 키를 그대로 사용합니다.
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  playlistId  String   @unique        // Spotify URL에서 추출한 실제 플레이리스트 ID
+  viewCount   Int      @default(0)
+    likeCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+  comments    Comment[]
+  likes       PlaylistLike[]
+}
+
+model Comment {
+  id         Int      @id @default(autoincrement())
+  postId     Int      // Playlist의 id를 참조 (애플리케이션에서는 이를 postId로 활용)
+  userId     Int
+  comment    String
+  createdAt  DateTime @default(now())
+
+  post       Playlist @relation(fields: [postId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model PlaylistLike {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  postId     Int      // Playlist의 id를 참조 (애플리케이션에서는 이를 postId로 활용)
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+  post       Playlist @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId], name: "userId_postId")
 }
