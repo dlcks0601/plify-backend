@@ -33,11 +33,12 @@ export class AuthService {
           },
         },
       );
-      console.log(tokenResponse.data);
+      // console.log(tokenResponse.data); 토큰 리스폰스 데이터
 
       const { access_token, refresh_token } = tokenResponse.data;
-      console.log('Spotify Refresh Token:', refresh_token);
-      console.log('Spotify Access Token:', access_token);
+
+      console.log('스포티파이 리프레시 토큰:', refresh_token);
+      console.log('스포티파이 엑세스 토큰:', access_token);
 
       const userInfoResponse = await axios.get(
         'https://api.spotify.com/v1/me',
@@ -45,9 +46,10 @@ export class AuthService {
           headers: { Authorization: `Bearer ${access_token}` },
         },
       );
+
       const userData = userInfoResponse.data;
 
-      console.log('Spotify User Data:', userData);
+      // console.log('스포티파이 유저 정보:', userData);
 
       if (!userData.id) {
         throw new Error('Spotify 사용자 ID를 가져올 수 없음');
@@ -61,16 +63,11 @@ export class AuthService {
         profileImageUrl: userData.images?.[0]?.url || null,
       };
 
-      // 기존 유저 존재 여부 확인 (이메일)
-      const isExistingUser = await this.checkUserExist(spotifyUser.email);
-
       // ✅ **유저 찾기 또는 업데이트**
       let user = await this.prisma.user.findUnique({
         where: { spotifyId: spotifyUser.spotifyId },
       });
 
-      const accessToken = tokenResponse.data.access_token;
-      const refreshToken = tokenResponse.data.refresh_token;
       if (user) {
         // 🔄 **기존 유저 정보 최신화**
         user = await this.prisma.user.update({
@@ -165,7 +162,7 @@ export class AuthService {
       });
     }
 
-    // ④ Spotify 인증 유저 생성 (비밀번호 없이 생성)
+    // ④ Spotify 인증 유저 생성
     return this.prisma.user.create({
       data: {
         spotifyId: spotifyUser.spotifyId,
@@ -201,7 +198,6 @@ export class AuthService {
       }
     }
 
-    // 로컬 회원가입 (auth_provider를 'local'로 지정)
     const newUser = await this.prisma.user.create({
       data: {
         email,

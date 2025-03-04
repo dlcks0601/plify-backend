@@ -8,6 +8,7 @@ import {
   HttpCode,
   UseGuards,
   Req,
+  HttpException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
@@ -27,9 +28,7 @@ export class AuthController {
 
   @Get('spotify')
   @UseGuards(AuthGuard('spotify'))
-  async spotifyLogin() {
-    // 스포티파이 로그인 요청 (Passport 전략이 처리)
-  }
+  async spotifyLogin() {}
 
   @Post('spotify/callback')
   async spotifyCallback(@Body('code') code: string, @Res() res: Response) {
@@ -66,7 +65,7 @@ export class AuthController {
           name: 'nickname123',
           nickname: 'nickname123',
           profileUrl: null,
-          authProvider: 'local',
+          authProvider: 'plify',
         },
         accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
       },
@@ -105,7 +104,6 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   async logout(@Req() req: any, @Res() res: Response) {
-    // JWT 페이로드에 저장된 userId 사용 (req.user.userId)
     const userId = req.user?.userId;
     await this.authService.deleteRefreshToken(userId);
     return res
