@@ -117,9 +117,20 @@ export class AuthService {
         console.log(`🆕 신규 유저 생성: ${user.id}`);
       }
 
-      // 🔄 Redis에 리프레시 토큰 저장
-      await this.storeRefreshToken(user.id, refresh_token);
+      // refresh_token이 반환되지 않는 경우 Redis에 저장된 값을 사용
+      let finalRefreshToken = refresh_token;
+      if (!finalRefreshToken) {
+        finalRefreshToken = await this.redisService.get(
+          `refresh_token:${user.id}`,
+        );
+      }
 
+      // refresh token이 존재하면 Redis에 저장 (새로운 값이 있더라도 업데이트)
+      if (finalRefreshToken) {
+        await this.storeRefreshToken(user.id, finalRefreshToken);
+      } else {
+        console.warn('Spotify refresh token이 존재하지 않습니다.');
+      }
       const responseUser = this.filterUserFields(user);
       return {
         user: responseUser,
@@ -324,47 +335,98 @@ export class AuthService {
     await this.redisService.set(key, refreshToken, ttl);
   }
 
-  async renewAccessToken(userId: number): Promise<string> {
-    const redisKey = `refresh_token:${userId}`;
-    const refreshToken = await this.redisService.get(redisKey);
-    if (!refreshToken) {
-      console.error(`No refresh token found for Redis key: ${redisKey}`);
-      throw new HttpException(
-        'Refresh token not found for user',
-        HttpStatus.BAD_REQUEST,
-      );
+  async renewAccessToken(
+    userId: number,
+  ): Promise<{ accessToken: string; provider: string }> {
+    // 사용자 정보 조회
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
-    console.log(`Retrieved refresh token from Redis: ${refreshToken}`);
-    try {
-      const payload = this.jwtService.verify(refreshToken, {
-        secret: process.env.REFRESH_TOKEN_SECRET,
-        algorithms: ['HS256'],
-      });
-      console.log('Decoded payload:', payload);
-      if (payload.userId !== userId) {
-        console.error(
-          `Token userId mismatch. Expected: ${userId}, Got: ${payload.userId}`,
-        );
-        throw new Error('Invalid refresh token');
-      }
-    } catch (error: any) {
-      if (error.name === 'TokenExpiredError') {
+
+    // Spotify 로그인 사용자라면
+    if (user.auth_provider === 'spotify') {
+      const redisKey = `refresh_token:${userId}`;
+      const spotifyRefreshToken = await this.redisService.get(redisKey);
+      if (!spotifyRefreshToken) {
         throw new HttpException(
-          'Refresh token has expired',
+          'Spotify refresh token not found',
           HttpStatus.BAD_REQUEST,
         );
       }
-      throw new HttpException(
-        'Refresh token validation failed',
-        HttpStatus.UNAUTHORIZED,
+
+      // Spotify 토큰 갱신 요청
+      const params = new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: spotifyRefreshToken,
+        client_id: process.env.SPOTIFY_CLIENT_ID!,
+        client_secret: process.env.SPOTIFY_CLIENT_SECRET!,
+      });
+
+      try {
+        const spotifyResponse = await axios.post(
+          'https://accounts.spotify.com/api/token',
+          params.toString(),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+          },
+        );
+        const newAccessToken = spotifyResponse.data.access_token;
+        console.log(`Spotify에서 새로운 access token 발급: ${newAccessToken}`);
+        return { accessToken: newAccessToken, provider: 'spotify' };
+      } catch (error) {
+        console.error('Spotify 토큰 갱신 실패:', error);
+        throw new HttpException(
+          'Spotify 토큰 갱신에 실패했습니다.',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+    } else {
+      // 일반 로그인 사용자의 경우 기존 로직 수행
+      const redisKey = `refresh_token:${userId}`;
+      const refreshToken = await this.redisService.get(redisKey);
+      if (!refreshToken) {
+        throw new HttpException(
+          'Refresh token not found for user',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      try {
+        const payload = this.jwtService.verify(refreshToken, {
+          secret: process.env.REFRESH_TOKEN_SECRET,
+          algorithms: ['HS256'],
+        });
+        if (payload.userId !== userId) {
+          throw new HttpException(
+            'Invalid refresh token',
+            HttpStatus.UNAUTHORIZED,
+          );
+        }
+      } catch (error: any) {
+        if (error.name === 'TokenExpiredError') {
+          throw new HttpException(
+            'Refresh token has expired',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+        throw new HttpException(
+          'Refresh token validation failed',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const newAccessToken = this.jwtService.sign(
+        { userId },
+        { expiresIn: '15m', secret: process.env.ACCESS_TOKEN_SECRET },
       );
+      console.log(
+        `일반 로그인 사용자의 새로운 access token 발급: ${newAccessToken}`,
+      );
+      return { accessToken: newAccessToken, provider: 'plify' };
     }
-    const newAccessToken = this.jwtService.sign(
-      { userId },
-      { expiresIn: '15m', secret: process.env.ACCESS_TOKEN_SECRET },
-    );
-    console.log(`Generated new access token: ${newAccessToken}`);
-    return newAccessToken;
   }
 
   async deleteRefreshToken(userId: number): Promise<void> {
