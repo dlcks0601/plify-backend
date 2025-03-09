@@ -16,6 +16,7 @@ model User {
   auth_provider String
   profile_url   String?
   password      String?
+  followersCount Int             @default(0)
   createdAt     DateTime         @default(now())
 
   playlists     Playlist[]
@@ -39,9 +40,9 @@ model Playlist {
 
 model Comment {
   id         Int      @id @default(autoincrement())
-  postId     Int      // Playlist의 id를 참조 (애플리케이션에서는 이를 postId로 활용)
+  postId     Int     
   userId     Int
-  comment    String
+  content    String
   createdAt  DateTime @default(now())
 
   post       Playlist @relation(fields: [postId], references: [id])
