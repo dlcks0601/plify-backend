@@ -22,6 +22,7 @@ model User {
   playlists     Playlist[]
   comments      Comment[]
   likes         PlaylistLike[]
+    commentLikes  CommentLike[]
 }
 
 model Playlist {
@@ -39,20 +40,33 @@ model Playlist {
 }
 
 model Comment {
-  id         Int      @id @default(autoincrement())
-  postId     Int     
-  userId     Int
-  content    String
-  createdAt  DateTime @default(now())
+  id          Int           @id @default(autoincrement())
+  postId      Int
+  userId      Int
+  content     String
+  likeCount   Int           @default(0) 
+  createdAt   DateTime      @default(now())
 
-  post       Playlist @relation(fields: [postId], references: [id])
-  user       User     @relation(fields: [userId], references: [id])
+  post        Playlist      @relation(fields: [postId], references: [id])
+  user        User          @relation(fields: [userId], references: [id])
+  likes       CommentLike[] 
 }
 
+model CommentLike {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  commentId  Int
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+  comment    Comment  @relation(fields: [commentId], references: [id])
+
+  @@unique([userId, commentId], name: "userId_commentId")
+}
 model PlaylistLike {
   id         Int      @id @default(autoincrement())
   userId     Int
-  postId     Int      // Playlist의 id를 참조 (애플리케이션에서는 이를 postId로 활용)
+  postId     Int      
   createdAt  DateTime @default(now())
 
   user       User     @relation(fields: [userId], references: [id])
