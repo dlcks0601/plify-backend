@@ -9,6 +9,7 @@ import {
   Headers,
   HttpException,
   HttpStatus,
+  Delete,
 } from '@nestjs/common';
 import { PlaylistService } from './playlist.service';
 import { GetPlaylistsQueryDto } from './dto/getPlaylistsQuery.dto';
@@ -21,30 +22,19 @@ export class PlaylistController {
   // 🎵 Spotify 액세스 토큰을 사용한 플레이리스트 추가
   @Post()
   async addPlaylist(
-    @Body() body: { spotifyPlaylistUrl: string },
-    @Headers('authorization') authHeader: string,
+    @Body() body: { spotifyPlaylistUrl: string; userId: number }, // ✅ `userId` 직접 받음
   ) {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new HttpException(
-        'Missing or invalid authorization token',
-        HttpStatus.UNAUTHORIZED,
-      );
+    console.log('🟢 받은 요청 body:', body); // 디버깅 로그
+
+    if (!body.userId) {
+      throw new HttpException('User ID is missing', HttpStatus.BAD_REQUEST);
     }
 
-    // 🎫 Bearer 토큰에서 Spotify 액세스 토큰 추출
-    const accessToken = authHeader.replace('Bearer ', '');
-
-    // 🎵 Spotify API 호출하여 유저 정보 가져오기
-    const spotifyUser = await this.getSpotifyUser(accessToken);
-
-    // 🎶 플레이리스트 ID 추출
+    // ✅ 플레이리스트 ID 추출
     const playlistId = this.extractPlaylistId(body.spotifyPlaylistUrl);
 
-    // 🆕 플레이리스트 추가
-    return await this.playlistService.addPlaylist(
-      spotifyUser.spotifyId,
-      playlistId,
-    );
+    // ✅ `userId`를 사용해 플레이리스트 추가
+    return await this.playlistService.addPlaylist(body.userId, playlistId);
   }
 
   // 🔍 전체 플레이리스트 조회
@@ -59,25 +49,21 @@ export class PlaylistController {
     return await this.playlistService.getPlaylist(Number(postId), req.user);
   }
 
-  // 🎧 Spotify 사용자 정보 조회
-  private async getSpotifyUser(accessToken: string) {
-    try {
-      const response = await axios.get('https://api.spotify.com/v1/me', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+  @Delete(':postId')
+  async deletePlaylist(
+    @Param('postId') postId: string,
+    @Body() body: { userId: number }, // ✅ 삭제 요청한 유저의 `userId` 받기
+  ) {
+    console.log('🗑️ 받은 삭제 요청:', { postId, userId: body.userId });
 
-      return {
-        spotifyId: response.data.id,
-        email: response.data.email || `${response.data.id}@spotify.com`,
-        displayName: response.data.display_name || response.data.id,
-        profileImageUrl: response.data.images?.[0]?.url || null,
-      };
-    } catch (error) {
-      throw new HttpException(
-        'Invalid Spotify access token',
-        HttpStatus.UNAUTHORIZED,
-      );
+    if (!body.userId) {
+      throw new HttpException('User ID is required', HttpStatus.BAD_REQUEST);
     }
+
+    return await this.playlistService.deletePlaylist(
+      Number(postId),
+      body.userId,
+    );
   }
 
   // 🎼 URL에서 Spotify 플레이리스트 ID 추출

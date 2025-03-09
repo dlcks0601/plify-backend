@@ -7,50 +7,23 @@ export class PlaylistService {
   constructor(private readonly prisma: PrismaService) {}
 
   // 🎵 Spotify 액세스 토큰을 이용한 플레이리스트 추가
-  async addPlaylist(userInfo: { userId: number }, playlistId: string) {
-    // ✅ `userInfo.userId`가 DB의 Primary Key (user.id) 임
-    const userId = userInfo.userId;
-
-    // 🔎 이미 존재하는 플레이리스트인지 확인
-    const existing = await this.prisma.playlist.findUnique({
-      where: { playlistId },
-    });
-
-    if (existing) {
-      throw new HttpException(
-        'Playlist already exists',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    // 🎶 플레이리스트 추가 (DB의 user.id 사용)
-    return await this.prisma.playlist.create({
+  async addPlaylist(userId: number, playlistId: string) {
+    const newPlaylist = await this.prisma.playlist.create({
       data: {
-        userId, // ✅ 여기서 DB의 user.id 사용!
+        userId, // ✅ 이제 userId를 직접 저장 가능!
         playlistId,
       },
     });
-  }
 
-  // 🔍 Spotify API 호출하여 유저 정보 가져오기
-  private async getSpotifyUser(accessToken: string) {
-    try {
-      const response = await axios.get('https://api.spotify.com/v1/me', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-
-      return {
-        spotifyId: response.data.id,
-        email: response.data.email || `${response.data.id}@spotify.com`,
-        displayName: response.data.display_name || response.data.id,
-        profileImageUrl: response.data.images?.[0]?.url || null,
-      };
-    } catch (error) {
-      throw new HttpException(
-        'Invalid Spotify access token',
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
+    return {
+      message: {
+        code: 200,
+        text: '플레이리스트가 생성되었습니다.',
+      },
+      playlists: {
+        id: newPlaylist.id,
+      },
+    };
   }
 
   // 🔍 전체 플레이리스트 조회
@@ -171,6 +144,40 @@ export class PlaylistService {
       likeCount: result._count.likes,
       viewCount: result.viewCount,
       createdAt: result.createdAt,
+    };
+  }
+
+  async deletePlaylist(postId: number, userId: number) {
+    console.log('🗑️ 삭제 요청 받은 postId:', postId);
+    console.log('🗑️ 삭제 요청한 userId:', userId);
+
+    // 🔎 플레이리스트 존재 여부 확인
+    const playlist = await this.prisma.playlist.findUnique({
+      where: { id: postId },
+    });
+
+    if (!playlist) {
+      throw new HttpException('Playlist not found', HttpStatus.NOT_FOUND);
+    }
+
+    // 🔒 본인이 생성한 플레이리스트인지 확인
+    if (playlist.userId !== userId) {
+      throw new HttpException(
+        'You are not authorized to delete this playlist',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    // 🗑️ 플레이리스트 삭제
+    await this.prisma.playlist.delete({
+      where: { id: postId },
+    });
+
+    return {
+      message: {
+        code: 200,
+        text: '플레이리스트가 삭제되었습니다.',
+      },
     };
   }
 }
