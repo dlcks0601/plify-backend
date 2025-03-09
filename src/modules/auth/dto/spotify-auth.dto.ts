@@ -3,4 +3,5 @@ export class SpotifyAuthDto {
   email: string;
   displayName: string;
   profileImageUrl?: string | null;
+  followersCount?: number;
 }

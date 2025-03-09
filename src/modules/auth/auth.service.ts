@@ -49,7 +49,7 @@ export class AuthService {
 
       const userData = userInfoResponse.data;
 
-      // console.log('스포티파이 유저 정보:', userData);
+      console.log('스포티파이 유저 정보:', userData);
 
       if (!userData.id) {
         throw new Error('Spotify 사용자 ID를 가져올 수 없음');
@@ -61,7 +61,13 @@ export class AuthService {
         email: userData.email || `${userData.id}@spotify.com`,
         displayName: userData.display_name || userData.id,
         profileImageUrl: userData.images?.[0]?.url || null,
+        followersCount: userData.followers?.total || 0,
       };
+
+      const followersCount =
+        userData.followers && typeof userData.followers === 'object'
+          ? userData.followers.total || 0
+          : 0;
 
       // ✅ **유저 찾기 또는 업데이트**
       let user = await this.prisma.user.findUnique({
@@ -76,6 +82,7 @@ export class AuthService {
             email: spotifyUser.email,
             name: spotifyUser.displayName,
             profile_url: spotifyUser.profileImageUrl,
+            followersCount,
           },
         });
 
@@ -102,7 +109,7 @@ export class AuthService {
             name: spotifyUser.displayName,
             nickname: finalNickname,
             profile_url: spotifyUser.profileImageUrl,
-
+            followersCount: spotifyUser.followersCount,
             auth_provider: 'spotify',
           },
         });
@@ -116,8 +123,8 @@ export class AuthService {
       const responseUser = this.filterUserFields(user);
       return {
         user: responseUser,
-        accessToken: access_token, // ✅ Spotify Access Token 그대로 사용
-        refreshToken: refresh_token, // ✅ Spotify Refresh Token 그대로 사용
+        accessToken: access_token,
+        refreshToken: refresh_token,
       };
     } catch (error) {
       console.error(error);

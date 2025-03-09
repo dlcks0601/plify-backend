@@ -66,6 +66,7 @@ export class AuthController {
           nickname: 'nickname123',
           profileUrl: null,
           authProvider: 'plify',
+          followersCount: '0',
         },
         accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
       },
