@@ -45,24 +45,16 @@ export class CommentService {
     };
   }
 
-  // 🔍 특정 플레이리스트의 댓글 조회 (작성자 정보 포함)
-  async getCommentsByPlaylist(postId: number | string) {
-    const numericPostId = this.toNumber(postId, 'postId');
-
-    const playlist = await this.prisma.playlist.findUnique({
-      where: { id: numericPostId },
-    });
-
-    if (!playlist) {
-      throw new HttpException('Playlist not found', HttpStatus.NOT_FOUND);
-    }
+  // 🔍 특정 플레이리스트의 댓글 조회 (좋아요 상태 포함)
+  async getCommentsByPlaylist(postId: number | string, userId?: number) {
+    const numericPostId = Number(postId);
+    const numericUserId = userId ? Number(userId) : undefined;
 
     const comments = await this.prisma.comment.findMany({
       where: { postId: numericPostId },
       include: {
-        user: {
-          select: { id: true, nickname: true, profile_url: true },
-        },
+        user: { select: { id: true, nickname: true, profile_url: true } },
+        likes: { select: { userId: true } },
       },
     });
 
@@ -73,12 +65,13 @@ export class CommentService {
         userNickname: comment.user.nickname,
         userProfileUrl: comment.user.profile_url,
         content: comment.content,
+        likeCount: comment.likes.length,
+        isLiked: numericUserId
+          ? comment.likes.some((like) => like.userId === numericUserId)
+          : false,
         createdAt: comment.createdAt,
       })),
-      message: {
-        code: 200,
-        text: '특정 플레이리스트 댓글을 정상적으로 조회했습니다.',
-      },
+      message: { code: 200, text: '댓글 목록을 정상적으로 조회했습니다.' },
     };
   }
 
