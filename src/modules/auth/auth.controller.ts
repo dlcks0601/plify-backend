@@ -46,40 +46,6 @@ export class AuthController {
     return res.status(HttpStatus.OK).json(response);
   }
 
-  @Post('refresh')
-  async refresh(
-    @Req() req: any,
-    @Body() body: { userId?: number }, // Spotify 로그인 시 userId를 전달받기 위함
-    @Res() res: Response,
-  ) {
-    let userId: number | undefined;
-    const authHeader = req.headers.authorization;
-
-    // 만약 Authorization 헤더에 토큰이 있다면 JWT를 디코딩 시도
-    if (authHeader) {
-      const token = authHeader.split(' ')[1];
-      const decoded = this.jwtService.decode(token) as any;
-      if (decoded && decoded.userId) {
-        userId = decoded.userId;
-      }
-    }
-
-    // JWT 디코딩으로 userId를 얻지 못한 경우, body에서 userId를 사용 (Spotify 로그인용)
-    if (!userId && body.userId) {
-      userId = body.userId;
-    }
-
-    if (!userId) {
-      throw new HttpException(
-        '토큰 또는 사용자 정보가 제공되지 않았습니다.',
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-
-    const result = await this.authService.renewAccessToken(userId);
-    return res.status(HttpStatus.OK).json(result);
-  }
-
   // 로컬 로그인
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -135,15 +101,17 @@ export class AuthController {
       accessToken: result.accessToken,
     };
   }
-
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  async logout(@Req() req: any, @Res() res: Response) {
-    const userId = req.user?.userId;
-    await this.authService.deleteRefreshToken(userId);
+  async logout(@Res() res: Response) {
     return res
       .status(HttpStatusCodes.OK)
-      .json(new MyApiResponse(HttpStatusCodes.OK, '로그아웃 성공'));
+      .json(
+        new MyApiResponse(
+          HttpStatusCodes.OK,
+          '로그아웃 성공 (토큰 삭제는 클라이언트에서 수행)',
+        ),
+      );
   }
 
   @Post('signup')
