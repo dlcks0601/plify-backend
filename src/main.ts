@@ -39,9 +39,9 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api-docs', app, document, {
+  SwaggerModule.setup('api', app, document, {
     swaggerOptions: {
-      url: '/api-docs', // Swagger 문서 경로와 맞추기 위해 설정
+      url: '/api', // Swagger 문서 경로와 맞추기 위해 설정
     },
     customSiteTitle: 'API 문서',
   });
