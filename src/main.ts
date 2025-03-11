@@ -5,20 +5,29 @@ import * as fs from 'fs';
 
 async function bootstrap() {
   // HTTPS 옵션 추가 (인증서 및 키 파일 로드)
-  const httpsOptions = {
-    key: fs.readFileSync('localhost-key.pem'),
-    cert: fs.readFileSync('localhost.pem'),
-  };
+  // const httpsOptions = {
+  //   key: fs.readFileSync('localhost-key.pem'),
+  //   cert: fs.readFileSync('localhost.pem'),
+  // };
 
-  const app = await NestFactory.create(AppModule, { httpsOptions });
+  // const app = await NestFactory.create(AppModule, { httpsOptions });
+  const app = await NestFactory.create(AppModule);
 
   // CORS 설정
+  // app.enableCors({
+  //   origin: 'https://localhost:3000', // 프론트엔드 주소
+  //   credentials: true,
+  //   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS', 'PUT'],
+  //   allowedHeaders: ['Authorization', 'Content-Type'], // 💡 CORS 요청 헤더 허용
+  //   exposedHeaders: ['Authorization'], // 💡 클라이언트에서 응답 헤더 사용 가능
+  // });
+
   app.enableCors({
-    origin: 'https://localhost:3000', // 프론트엔드 주소
+    origin: 'https://plify.store', // 배포된 프론트엔드 주소로 수정
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS', 'PUT'],
-    allowedHeaders: ['Authorization', 'Content-Type'], // 💡 CORS 요청 헤더 허용
-    exposedHeaders: ['Authorization'], // 💡 클라이언트에서 응답 헤더 사용 가능
+    allowedHeaders: ['Authorization', 'Content-Type'],
+    exposedHeaders: ['Authorization'],
   });
 
   // Swagger 설정
