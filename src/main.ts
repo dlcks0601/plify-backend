@@ -54,13 +54,13 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { config } from './config/config'; // ✅ config.ts에서 설정 불러오기
+import { config } from './config/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: config.isLocal ? 'https://localhost:3000' : config.apiUrl,
+    origin: 'https://plify.store',
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS', 'PUT'],
     allowedHeaders: ['Authorization', 'Content-Type'],
@@ -81,7 +81,7 @@ async function bootstrap() {
     customSiteTitle: 'API 문서',
   });
 
-  await app.listen(config.port, '0.0.0.0'); // ✅ .env의 포트 값 사용
+  await app.listen(config.port, '0.0.0.0'); // .env의 포트 값 사용
   console.log(`🚀 Server running at ${config.apiUrl}:${config.port}`);
 }
 
