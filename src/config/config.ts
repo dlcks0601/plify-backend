@@ -9,8 +9,8 @@ const isLocal = process.env.NODE_ENV === 'local';
 export const config = {
   isLocal,
   port: parseInt(process.env.PORT || '4000', 10),
-  // 기본값은 api.plify.store 도메인을 사용하도록 설정
-  apiUrl: process.env.API_URL || 'https://api.plify.store',
+  // 배포 api.plify.store 도메인을 사용하도록 설정
+  apiUrl: 'https://localhost:4000',
   jwtSecret: process.env.JWT_SECRET || 'default_jwt_secret',
   databaseUrl: process.env.DATABASE_URL || '',
   spotify: {
